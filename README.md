@@ -6,6 +6,7 @@
   ![C++](https://img.shields.io/badge/C++20-00599C?style=flat-square&logo=cplusplus&logoColor=white)
   ![Qt](https://img.shields.io/badge/Qt-6-41CD52?style=flat-square&logo=qt&logoColor=white)
   ![Linux](https://img.shields.io/badge/platform-Linux-FCC624?style=flat-square&logo=linux&logoColor=black)
+  [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue?style=flat-square)](LICENSE)
 </div>
 
 Sappy's Controls turns hardware-tuning commands, Wi-Fi management, and network diagnostics into clear buttons, validated inputs, and checkboxes. It was built for an AMD Ryzen laptop using `ryzenadj` and `nbfc-linux`, but keeps the helpers configurable and free of machine-specific credentials.
@@ -118,4 +119,6 @@ tests/        Command validation and construction tests
 
 ## License
 
-No open-source license has been selected yet. Unless a license is added, all rights remain with the author.
+Copyright © 2026 Shaptak Naskar.
+
+Sappy's Controls is licensed under the **GNU General Public License v3.0 only**. See [LICENSE](LICENSE) for the complete terms.
