@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="32" y1="22" x2="226" y2="238" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1b202b"/>
+      <stop offset="1" stop-color="#0b0d12"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="69" y1="56" x2="190" y2="203" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffd36f"/>
+      <stop offset="1" stop-color="#edae32"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+  <rect x="9" y="9" width="238" height="238" rx="55" fill="none" stroke="#343b4a" stroke-width="2"/>
+  <path d="M78 78h100M78 128h100M78 178h100" stroke="#444c5d" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="112" cy="78" r="25" fill="url(#gold)"/>
+  <circle cx="158" cy="128" r="25" fill="url(#gold)"/>
+  <circle cx="98" cy="178" r="25" fill="url(#gold)"/>
+  <circle cx="112" cy="78" r="8" fill="#17120a"/>
+  <circle cx="158" cy="128" r="8" fill="#17120a"/>
+  <circle cx="98" cy="178" r="8" fill="#17120a"/>
+</svg>

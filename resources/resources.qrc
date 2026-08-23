@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="sappy-controls.svg">../packaging/io.github.sappy.SappyControls.svg</file>
+    </qresource>
+</RCC>

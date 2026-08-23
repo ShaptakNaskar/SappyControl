@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+#
+# wifi-kill — unload or restore a Wi-Fi kernel driver.
+#
+#   wifi-kill --kill             unload the driver for this boot
+#   wifi-kill --kill --persist   also blacklist it across reboots
+#   wifi-kill --off              remove persistent changes and restore Wi-Fi
+#
+# Configuration:
+#   WIFI_DRIVER=iwlwifi
+#   NETWORK_MANAGER_SERVICE=NetworkManager
+#
+set -euo pipefail
+
+DRIVER="${WIFI_DRIVER:-iwlwifi}"
+NETWORK_MANAGER_SERVICE="${NETWORK_MANAGER_SERVICE:-NetworkManager}"
+MODPROBE_CONF="/etc/modprobe.d/disable-wifi.conf"
+UDEV_RULE="/etc/udev/rules.d/70-disable-wifi.rules"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  wifi-kill --kill [--persist]
+        Unload the configured Wi-Fi driver and reload udev rules.
+        --persist also blacklists it and rebuilds initramfs when supported.
+
+  wifi-kill --off
+        Restore the driver, unblock rfkill, restart the network service, and
+        remove persistent-disable files.
+
+  Aliases: --on / --restore behave like --off.
+
+Environment:
+  WIFI_DRIVER                 Kernel module to manage (default: iwlwifi)
+  NETWORK_MANAGER_SERVICE     systemd service to restart (default: NetworkManager)
+EOF
+}
+
+ACTION=""
+PERSIST=false
+for arg in "$@"; do
+    case "$arg" in
+        --kill) ACTION="kill" ;;
+        --off|--on|--restore) ACTION="restore" ;;
+        --persist) PERSIST=true ;;
+        -h|--help) usage; exit 0 ;;
+        *)
+            echo "error: unknown argument: $arg" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+done
+
+if [[ -z "$ACTION" ]]; then
+    echo "error: choose --kill or --off" >&2
+    usage >&2
+    exit 1
+fi
+
+# Elevate each fixed system command instead of executing this user-writable
+# script as root. Desktop sessions use Polkit; terminals fall back to sudo.
+run() {
+    echo "+ elevated: $*" >&2
+    if [[ ${EUID} -eq 0 ]]; then
+        "$@"
+    elif command -v pkexec >/dev/null 2>&1 && [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+        pkexec "$@"
+    else
+        sudo "$@"
+    fi
+}
+
+write_root_file() {
+    local dest="$1" tmp
+    tmp="$(mktemp)"
+    trap 'rm -f "$tmp"' RETURN
+    cat >"$tmp"
+    run cp "$tmp" "$dest"
+    run chmod 644 "$dest"
+    rm -f "$tmp"
+    trap - RETURN
+}
+
+rebuild_initramfs() {
+    if command -v mkinitcpio >/dev/null 2>&1; then
+        echo ">>> Rebuilding initramfs with mkinitcpio..."
+        run mkinitcpio -P || echo ">>> mkinitcpio reported warnings; review the output above."
+    elif command -v update-initramfs >/dev/null 2>&1; then
+        echo ">>> Rebuilding initramfs with update-initramfs..."
+        run update-initramfs -u
+    elif command -v dracut >/dev/null 2>&1; then
+        echo ">>> Rebuilding initramfs with dracut..."
+        run dracut --regenerate-all --force
+    else
+        echo ">>> Warning: no supported initramfs tool found; rebuild it manually." >&2
+    fi
+}
+
+kill_wifi() {
+    echo ">>> Unloading Wi-Fi driver ($DRIVER)..."
+
+    local children
+    children=$(lsmod | awk -v d="$DRIVER" '$1==d {print $4}' | tr ',' ' ' 2>/dev/null || true)
+
+    for module in $children $DRIVER; do
+        [[ -z "$module" ]] && continue
+        if lsmod | awk '{print $1}' | grep -qx "$module"; then
+            run modprobe -r "$module" || run rmmod "$module" || true
+        fi
+    done
+
+    if $PERSIST; then
+        echo ">>> Writing persistent-disable configuration..."
+        write_root_file "$MODPROBE_CONF" <<EOF
+# Managed by sappy-wifi-kill.
+blacklist $DRIVER
+install $DRIVER /bin/true
+EOF
+        write_root_file "$UDEV_RULE" <<'EOF'
+# Managed by sappy-wifi-kill.
+ACTION=="add", SUBSYSTEM=="rfkill", ATTR{type}=="wlan", ATTR{state}="0"
+EOF
+        run udevadm control --reload-rules
+        rebuild_initramfs
+        echo ">>> Done. '$DRIVER' is disabled persistently."
+    else
+        run udevadm control --reload-rules
+        echo ">>> Done. '$DRIVER' is unloaded for this boot."
+    fi
+}
+
+restore_wifi() {
+    echo ">>> Restoring Wi-Fi driver ($DRIVER)..."
+
+    local removed=false
+    for file in "$MODPROBE_CONF" "$UDEV_RULE"; do
+        if [[ -e "$file" ]]; then
+            run rm -f "$file"
+            removed=true
+        fi
+    done
+
+    run udevadm control --reload-rules
+    $removed && rebuild_initramfs
+
+    run modprobe "$DRIVER"
+    run rfkill unblock wifi || true
+    run systemctl restart "$NETWORK_MANAGER_SERVICE" || true
+
+    echo ">>> Done. '$DRIVER' is loaded and Wi-Fi is unblocked."
+}
+
+case "$ACTION" in
+    kill) kill_wifi ;;
+    restore) restore_wifi ;;
+esac
+
