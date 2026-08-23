@@ -119,4 +119,3 @@ tests/        Command validation and construction tests
 ## License
 
 No open-source license has been selected yet. Unless a license is added, all rights remain with the author.
-

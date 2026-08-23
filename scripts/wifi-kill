@@ -155,4 +155,3 @@ case "$ACTION" in
     kill) kill_wifi ;;
     restore) restore_wifi ;;
 esac
-
